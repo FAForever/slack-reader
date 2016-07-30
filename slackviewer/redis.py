@@ -8,21 +8,6 @@ class _RedisClient(StrictRedis):
         super().__init__(**kwargs)
         self.flushall()
 
-    def get_or_slack(self, name: str, slack_func: callable):
-        """
-        Retrieves from redis, if retrieval is a miss or expired then
-        it will fetch from the slack callback
-        :param name: Redis store name
-        :param slack_func: Slack api callback
-        :return: Appropriate result
-        """
-        result = self.get(name)
-        if result:
-            return json.loads(result)
-        result = slack_func()
-        redis_client.set(name, result)
-        return result
-
     def hget_or_slack(self, name: str, key: str, slack_func: callable, **kwargs):
         """
         Retrieves value from redis, if retrieval is a miss or expired then
@@ -39,4 +24,4 @@ class _RedisClient(StrictRedis):
         redis_client.hset(name, key, json.dumps(result))
         return result
 
-redis_client = _RedisClient(decode_responses=True)
+redis_client = _RedisClient(host='redis', decode_responses=True)

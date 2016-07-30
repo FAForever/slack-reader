@@ -1,0 +1,13 @@
+version: '2'
+
+services:
+  slack-public-viewer:
+    build: ./
+    env_file: .env
+    depends_on:
+      - redis
+    ports:
+     - "5000:5000"
+
+  redis:
+    image: redis:3.0.7

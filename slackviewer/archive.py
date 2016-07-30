@@ -40,10 +40,6 @@ class _Archive(object):
         return redis_client.hget_or_slack('users', user_id, slack_api_client.get_user)
 
     @staticmethod
-    def get_channel(channel_id: str) -> dict:
-        return redis_client.hget_or_slack('channels', channel_id, slack_api_client.get_channel)
-
-    @staticmethod
     def get_channel_ids_by_name() -> dict:
         channels = redis_client.hgetall('channels')
         return {json.loads(channel)['name']: id for id, channel in channels.items()}
