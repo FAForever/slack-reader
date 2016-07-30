@@ -6,8 +6,6 @@ def _configure_app():
     parser = argparse.ArgumentParser(usage='Public slack team viewer')
     parser.add_argument('-d', '--debug', action='store_true', help='enable flask debugging')
     args = parser.parse_args()
-
-    app.config["PROPAGATE_EXCEPTIONS"] = True
     return args.debug
 
 
