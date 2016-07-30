@@ -17,13 +17,13 @@ long_description = read('README.md')
 
 
 setup(
-    name="slack-export-viewer",
+    name="slack-public-viewer",
     version=slackviewer.__version__,
-    url='https://github.com/hfaran/slack-export-viewer',
+    url='https://github.com/cheyans/slack-export-viewer',
     license='MIT License',
-    author='Hamza Faran',
-    author_email='hamzafaran@outlook.com',
-    description=('Slack Export Archive Viewer'),
+    author='Cheyan Setayesh',
+    author_email='cheyan.set@gmail.com',
+    description=('Slack Team Publicizer Viewer'),
     long_description=long_description,
     packages=["slackviewer"],
     install_requires = install_requires,
@@ -31,18 +31,10 @@ setup(
         'slack-export-viewer = slackviewer.main:main'
     ]},
     include_package_data=True,
-    # https://github.com/mitsuhiko/flask/issues/1562
-    zip_safe=False,
     classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Environment :: Console',
         'Environment :: Web Environment',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
     ],
 )

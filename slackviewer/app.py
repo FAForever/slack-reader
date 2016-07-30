@@ -1,5 +1,5 @@
 import flask
-
+from slackviewer.archive import archive
 
 app = flask.Flask(
     __name__,
@@ -10,17 +10,12 @@ app = flask.Flask(
 
 @app.route("/channel/<name>")
 def channel_name(name):
-    messages = flask._app_ctx_stack.channels[name]
-    channels = flask._app_ctx_stack.channels.keys()
+    messages = archive.get_messages(name)
     return flask.render_template("viewer.html", messages=messages,
                                  name=name.format(name=name),
-                                 channels=sorted(channels))
+                                 channels=sorted(archive.get_channel_ids_by_name()))
 
 
 @app.route("/")
 def index():
-    channels = flask._app_ctx_stack.channels.keys()
-    if "general" in channels:
-        return channel_name("general")
-    else:
-        return channel_name(channels[0])
+    return channel_name('general')

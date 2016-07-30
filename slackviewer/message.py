@@ -9,10 +9,10 @@ import markdown2
 
 
 class Message(object):
-    def __init__(self, USER_DATA, CHANNEL_DATA, message):
-        self.__USER_DATA = USER_DATA
-        self.__CHANNEL_DATA = CHANNEL_DATA
+    def __init__(self, message: dict, user_store: callable, channels: dict):
         self._message = message
+        self._users = user_store
+        self._channels = channels
 
     ##############
     # Properties #
@@ -25,7 +25,7 @@ class Message(object):
     @property
     def username(self):
         try:
-            return self.__USER_DATA[self._message["user"]]["name"]
+            return self._users(self._message["user"])["name"]
         except KeyError:
             # In case this is a bot or something, we fallback to "username"
             if "username" in self._message:
@@ -77,7 +77,7 @@ class Message(object):
     @property
     def img(self):
         try:
-            return self.__USER_DATA[self._message["user"]]["profile"]["image_72"]
+            return self._users(self._message["user"])["profile"]["image_72"]
         except KeyError:
             return ""
 
@@ -153,7 +153,7 @@ class Message(object):
 
     def _sub_mention(self, matchobj):
         return "@{}".format(
-            self.__USER_DATA[matchobj.group(0)[2:-1]]["name"]
+            self._users(matchobj.group(0)[2:-1])["name"]
         )
 
     def _sub_annotated_mention(self, matchobj):
@@ -183,7 +183,7 @@ class Message(object):
     def _sub_channel_ref(self, matchobj):
         channel_id = matchobj.group(0)[2:-1]
         try:
-            channel_name = self.__CHANNEL_DATA[channel_id]["name"]
+            channel_name = self._channels[channel_id]
         except KeyError as e:
             logging.error("A channel reference was detected but metadata "
                           "not found in channels.json: {}".format(e))

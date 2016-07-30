@@ -1,4 +1,5 @@
-click
+redis
+slacker
 flask
 markdown2
 emoji

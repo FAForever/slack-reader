@@ -1,75 +1,51 @@
-import hashlib
 import json
-import os
-import zipfile
-
+from collections import defaultdict
+from datetime import datetime
 from slackviewer.message import Message
+from slackviewer.redis import redis_client
+from slackviewer.slack import slack_api_client
+from slackviewer.util import MINUTE
 
 
-def get_channel_list(path):
-    channels = [d for d in os.listdir(path)
-                if os.path.isdir(os.path.join(path, d))]
-    return channels
+class _Archive(object):
+    def __init__(self):
+        channels = slack_api_client.get_channels()
+        channels = {channel["id"]: json.dumps(channel) for channel in channels if not channel['is_archived']}
+        users = {user["id"]: json.dumps(user) for user in slack_api_client.get_users()}
+        self._last_request = defaultdict(int, {channel: 0 for channel in channels.keys()})
 
+        redis_client.hmset('users', users)
+        redis_client.hmset('channels', channels)
+        for channel_id in channels:
+            redis_client.hget_or_slack('messages', channel_id, slack_api_client.get_history)
 
-def compile_channels(path, user_data, channel_data):
-    channels = get_channel_list(path)
-    chats = {}
-    for channel in channels:
-        channel_dir_path = os.path.join(path, channel)
-        messages = []
-        for day in sorted(os.listdir(channel_dir_path)):
-            with open(os.path.join(channel_dir_path, day)) as f:
-                day_messages = json.load(f)
-                messages.extend([Message(user_data, channel_data, d) for d in
-                                 day_messages])
-        chats[channel] = messages
-    return chats
+    def get_messages(self, channel: str) -> list:
+        channel_id = self.get_channel_ids_by_name()[channel]
+        channels = self.get_channel_ids_by_name()
 
+        # Slack request if 15 minutes passed
+        last_request = self._last_request[channel_id] + 15 * MINUTE
+        current_ts = datetime.now().timestamp()
+        oldest = current_ts if last_request < current_ts else None
+        messages = redis_client.hget_or_slack('messages', channel_id,
+                                              slack_api_client.get_history, oldest=oldest)
 
-def get_users(path):
-    with open(os.path.join(path, "users.json")) as f:
-        return {u["id"]: u for u in json.load(f)}
+        serialized_messages = []
+        for message in messages:
+            serialized_messages.insert(0, Message(message, _Archive.get_user, channels))
+        return serialized_messages
 
+    @staticmethod
+    def get_user(user_id: str) -> dict:
+        return redis_client.hget_or_slack('users', user_id, slack_api_client.get_user)
 
-def get_channels(path):
-    with open(os.path.join(path, "channels.json")) as f:
-        return {u["id"]: u for u in json.load(f)}
+    @staticmethod
+    def get_channel(channel_id: str) -> dict:
+        return redis_client.hget_or_slack('channels', channel_id, slack_api_client.get_channel)
 
+    @staticmethod
+    def get_channel_ids_by_name() -> dict:
+        channels = redis_client.hgetall('channels')
+        return {json.loads(channel)['name']: id for id, channel in channels.items()}
 
-def SHA1_file(filepath):
-    with open(filepath, 'rb') as f:
-        return hashlib.sha1(f.read()).hexdigest()
-
-
-def extract_archive(filepath):
-    if not zipfile.is_zipfile(filepath):
-        # Misuse of TypeError? :P
-        raise TypeError("{} is not a zipfile".format(filepath))
-
-    archive_sha = SHA1_file(filepath)
-    extracted_path = os.path.join("/tmp", "_slackviewer", archive_sha)
-    if os.path.exists(extracted_path):
-        print("{} already exists".format(extracted_path))
-    else:
-        # Extract zip
-        with zipfile.ZipFile(filepath) as zip:
-            print("{} extracting to {}...".format(
-                filepath,
-                extracted_path))
-            zip.extractall(path=extracted_path)
-        print("{} extracted to {}.".format(filepath, extracted_path))
-        # Add additional file with archive info
-        archive_info = {
-            "sha1": archive_sha,
-            "filename": os.path.split(filepath)[1]
-        }
-        with open(
-            os.path.join(
-                extracted_path,
-                ".slackviewer_archive_info.json"
-            ), 'w+'
-        ) as f:
-            json.dump(archive_info, f)
-
-    return extracted_path
+archive = _Archive()
