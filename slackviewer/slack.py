@@ -1,3 +1,5 @@
+import os
+
 from slacker import Slacker
 
 
@@ -24,7 +26,8 @@ class _SlackApiClient(object):
         return self._slack.bots.info(bot_id).body["bot"]
 
 
-with open('.env') as f:
-    token = f.readline().split("=")[1].split("\n")[0]
+token = os.environ['API_KEY']
+if not token:
+    raise Exception('Slack Api Key required')
 
 slack_api_client = _SlackApiClient(token)
