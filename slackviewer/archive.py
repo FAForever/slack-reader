@@ -18,7 +18,7 @@ class _Archive(object):
         for channel_id in channels:
             key = channel_id + '_messages'
             redis_client.get_list(key, slack_api_client.get_history, channel_id)
-            redis_client.expire(key, MINUTE)
+            redis_client.expire(key, 15 * MINUTE)
             self._last_request[channel_id] = datetime.now().timestamp()
 
     def get_messages(self, channel: str) -> list:
@@ -27,7 +27,7 @@ class _Archive(object):
         # Slack request if 15 minutes passed
         last_request = self._last_request[channel_id]
         current_ts = datetime.now().timestamp()
-        oldest = last_request if current_ts - last_request > MINUTE * 15 else None
+        oldest = last_request if current_ts - last_request > 15 * MINUTE else None
 
         key = channel_id + '_messages'
         messages = redis_client.get_list(key, slack_api_client.get_history, channel_id, oldest=oldest)
