@@ -1,5 +1,4 @@
 import json
-from collections import defaultdict
 from datetime import datetime
 from slackviewer.message import Message
 from slackviewer.redis import redis_client
@@ -12,32 +11,45 @@ class _Archive(object):
         channels = slack_api_client.get_channels()
         channels = {channel["id"]: json.dumps(channel) for channel in channels if not channel['is_archived']}
         users = {user["id"]: json.dumps(user) for user in slack_api_client.get_users()}
-        self._last_request = defaultdict(int, {channel: 0 for channel in channels.keys()})
+        self._last_request = {}
 
         redis_client.hmset('users', users)
         redis_client.hmset('channels', channels)
         for channel_id in channels:
-            redis_client.hget_or_slack('messages', channel_id, slack_api_client.get_history)
+            key = channel_id + '_messages'
+            redis_client.get_list(key, slack_api_client.get_history, channel_id)
+            redis_client.expire(key, MINUTE)
+            self._last_request[channel_id] = datetime.now().timestamp()
 
     def get_messages(self, channel: str) -> list:
         channel_id = self.get_channel_ids_by_name()[channel]
-        channels = self.get_channel_ids_by_name()
 
         # Slack request if 15 minutes passed
-        last_request = self._last_request[channel_id] + 15 * MINUTE
+        last_request = self._last_request[channel_id]
         current_ts = datetime.now().timestamp()
-        oldest = current_ts if last_request < current_ts else None
-        messages = redis_client.hget_or_slack('messages', channel_id,
-                                              slack_api_client.get_history, oldest=oldest)
+        oldest = last_request if current_ts - last_request > MINUTE * 15 else None
+
+        key = channel_id + '_messages'
+        messages = redis_client.get_list(key, slack_api_client.get_history, channel_id, oldest=oldest)
+        self._last_request[channel_id] = current_ts if oldest else last_request
 
         serialized_messages = []
         for message in messages:
-            serialized_messages.insert(0, Message(message, _Archive.get_user, channels))
+            serialized_messages.insert(0, Message(message, _Archive.get_user, _Archive.get_channel))
         return serialized_messages
 
     @staticmethod
     def get_user(user_id: str) -> dict:
-        return redis_client.hget_or_slack('users', user_id, slack_api_client.get_user)
+        user = redis_client.get_hash_item('users', user_id, slack_api_client.get_user)
+        # It's a bot
+        if not user:
+            user = slack_api_client.get_bot_info(user_id)
+            redis_client.hset('users', user['id'], json.dumps(user))
+        return user
+
+    @staticmethod
+    def get_channel(channel_id: str) -> dict:
+        return redis_client.get_hash_item('channels', channel_id, slack_api_client.get_channel)
 
     @staticmethod
     def get_channel_ids_by_name() -> dict:

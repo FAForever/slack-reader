@@ -9,10 +9,10 @@ import markdown2
 
 
 class Message(object):
-    def __init__(self, message: dict, user_store: callable, channels: dict):
+    def __init__(self, message: dict, user_store: callable, channel_store: callable):
         self._message = message
         self._users = user_store
-        self._channels = channels
+        self._channels = channel_store
 
     ##############
     # Properties #
@@ -104,7 +104,7 @@ class Message(object):
         message = re.sub(r"(^| )#[A-Za-z0-9\.\-\_]+( |$)",
                          self._sub_hashtag, message)
         # Handle channel references
-        message = re.sub(r"<#C0\w+>", self._sub_channel_ref, message)
+        message = re.sub(r"<#C(1|0)\w+>", self._sub_channel_ref, message)
         # Handle italics (convert * * to ** **)
         message = re.sub(r"(^| )\*[A-Za-z0-9\-._ ]+\*( |$)",
                          self._sub_bold, message)
@@ -182,13 +182,15 @@ class Message(object):
 
     def _sub_channel_ref(self, matchobj):
         channel_id = matchobj.group(0)[2:-1]
+        link = ''
         try:
-            channel_name = self._channels[channel_id]
+            channel_name = self._channels(channel_id)['name']
+            link = channel_name
         except KeyError as e:
             logging.error("A channel reference was detected but metadata "
                           "not found in channels.json: {}".format(e))
             channel_name = channel_id
-        return "*#{}*".format(channel_name)
+        return "<a href='/channel/{0}'>#{1}</a>".format(link, channel_name)
 
     def __em_strong(self, matchobj, format="em"):
         if format not in ("em", "strong"):

@@ -13,7 +13,7 @@ class _SlackApiClient(object):
     def get_channel(self, channel_id: str) -> dict:
         return self._slack.channels.info(channel_id).body['channel']
 
-    def get_history(self, channel_id: str, count=200, **kwargs) -> list:
+    def get_history(self, channel_id: str, count=500, **kwargs) -> list:
         return self._slack.channels.history(channel_id, count=count, **kwargs).body['messages']
 
     def get_users(self) -> list:
@@ -26,8 +26,4 @@ class _SlackApiClient(object):
         return self._slack.bots.info(bot_id).body["bot"]
 
 
-token = os.environ['API_KEY']
-if not token:
-    raise Exception('Slack Api Key required')
-
-slack_api_client = _SlackApiClient(token)
+slack_api_client = _SlackApiClient(os.environ['API_KEY'])

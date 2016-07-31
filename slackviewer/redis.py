@@ -8,7 +8,16 @@ class _RedisClient(StrictRedis):
         super().__init__(**kwargs)
         self.flushall()
 
-    def hget_or_slack(self, name: str, key: str, slack_func: callable, **kwargs):
+    def get_list(self, name: str, slack_func: callable, *args, **kwargs):
+        result = self.lrange(name, 0, -1)
+        if result:
+            return [json.loads(item) for item in result]
+        result = slack_func(*args, **kwargs)
+        redis_client.lpush(name, *reversed([json.dumps(item) for item in result]))
+        redis_client.ltrim(name, 0, 500)
+        return result
+
+    def get_hash_item(self, name: str, key: str, slack_func: callable, **kwargs):
         """
         Retrieves value from redis, if retrieval is a miss or expired then
         it will fetch from the slack callback
