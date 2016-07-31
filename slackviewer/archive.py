@@ -35,7 +35,7 @@ class _Archive(object):
 
         serialized_messages = []
         for message in messages:
-            serialized_messages.insert(0, Message(message, _Archive.get_user, _Archive.get_channel))
+            serialized_messages.append(Message(message, _Archive.get_user, _Archive.get_channel))
         return serialized_messages
 
     @staticmethod

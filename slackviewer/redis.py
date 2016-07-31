@@ -13,7 +13,7 @@ class _RedisClient(StrictRedis):
         if result:
             return [json.loads(item) for item in result]
         result = slack_func(*args, **kwargs)
-        redis_client.lpush(name, *reversed([json.dumps(item) for item in result]))
+        redis_client.lpush(name, *[json.dumps(item) for item in result])
         redis_client.ltrim(name, 0, 500)
         return result
 
