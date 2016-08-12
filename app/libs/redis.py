@@ -1,24 +1,29 @@
 import json
+import os
 
 from redis import StrictRedis
+from emitter import Emitter
 
 
-class _RedisClient(StrictRedis):
+# TODO use message pack instead of json serializing
+
+class RedisService(StrictRedis):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.flushall()
+        self.emitter = Emitter({'client': self})
 
     def get_list(self, name: str, slack_func: callable, *args, **kwargs):
         result = self.lrange(name, 0, -1)
         if result:
             return [json.loads(item) for item in result]
         result = slack_func(*args, **kwargs)
-        redis_client.lpush(name, *[json.dumps(item) for item in result])
-        redis_client.ltrim(name, 0, 500)
+        self.lpush(name, *[json.dumps(item) for item in result])
+        self.ltrim(name, 0, 500)
         return result
 
     def get_hash_item(self, name: str, key: str, slack_func: callable, **kwargs):
-        """
+        """self
         Retrieves value from redis, if retrieval is a miss or expired then
         it will fetch from the slack callback
         :param name: Redis store name
@@ -30,7 +35,10 @@ class _RedisClient(StrictRedis):
         if result:
             return json.loads(result)
         result = slack_func(key, **kwargs)
-        redis_client.hset(name, key, json.dumps(result))
+        self.hset(name, key, json.dumps(result))
         return result
 
-redis_client = _RedisClient(host='redis', decode_responses=True)
+host = os.environ.get('REDIS_HOST', 'localhost')
+port = os.environ.get('REDIS_PORT', '6379')
+redis = RedisService(host=host, port=port, decode_responses=True)
+
